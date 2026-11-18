@@ -62,6 +62,30 @@ class SettingsRepository {
     );
   }
 
+  Future<void> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? phoneNumber,
+  }) async {
+    await _api.patch<dynamic>(
+      ApiEndpoints.updateUser,
+      data: {
+        if (firstName != null && firstName.trim().isNotEmpty)
+          'firstName': firstName.trim(),
+        if (lastName != null && lastName.trim().isNotEmpty)
+          'lastName': lastName.trim(),
+        if (phoneNumber != null && phoneNumber.trim().isNotEmpty)
+          'phoneNumber': phoneNumber.trim(),
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> getNotificationPreferences() async {
+    final res = await _api.get<Map<String, dynamic>>(
+        ApiEndpoints.notificationPreferences);
+    return res.data ?? {};
+  }
+
   Future<void> updateNotificationPreferences(
       Map<String, dynamic> prefs) async {
     await _api.put<dynamic>(

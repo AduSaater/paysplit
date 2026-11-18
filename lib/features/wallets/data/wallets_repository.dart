@@ -70,16 +70,18 @@ class WalletsRepository {
     required String accentColor,
     int? targetAmountKobo,
   }) async {
-    final res = await _api.post<Map<String, dynamic>>(
+    final res = await _api.post<dynamic>(
       ApiEndpoints.wallets,
       data: {
         'name': name.trim(),
         'categoryId': categoryId,
         'accentColor': accentColor,
-        'targetAmount': targetAmountKobo,
+        'targetAmount': ?targetAmountKobo,
       },
     );
-    return res.data ?? {};
+    return (res.data is Map<String, dynamic>)
+        ? res.data as Map<String, dynamic>
+        : {};
   }
 
   Future<Map<String, dynamic>> updateWallet(

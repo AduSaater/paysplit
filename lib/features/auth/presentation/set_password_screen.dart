@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../data/auth_repository.dart';
 import 'auth_provider.dart';
 
@@ -42,45 +43,13 @@ class _SetPasswordScreenState extends ConsumerState<SetPasswordScreen> {
           );
       await ref.read(authProvider.notifier).completeAuthFromSetPassword(data);
       if (!mounted) return;
-      _showWelcomeDialog();
+      context.go('/account-success');
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  void _showWelcomeDialog() {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Welcome to PaySplit!'),
-        content: const Text(
-          'Your account is ready. Complete your KYC verification now to unlock your dedicated salary account and automated splits.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.go('/dashboard');
-            },
-            child: const Text('Go to Dashboard'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              context.go('/kyc');
-            },
-            child: const Text('Continue to KYC'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override

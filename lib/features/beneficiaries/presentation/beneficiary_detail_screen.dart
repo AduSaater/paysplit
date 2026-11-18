@@ -11,6 +11,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/confirmation_modal.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../data/beneficiaries_repository.dart';
 
 class BeneficiaryDetailScreen extends ConsumerStatefulWidget {
@@ -70,9 +71,7 @@ class _BeneficiaryDetailScreenState
       await _load();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     }
   }
 
@@ -94,9 +93,7 @@ class _BeneficiaryDetailScreenState
       context.pop();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     }
   }
 

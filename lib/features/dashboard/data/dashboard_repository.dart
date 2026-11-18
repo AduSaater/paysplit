@@ -17,6 +17,8 @@ class DashboardBundle {
     required this.setupProgress,
     required this.recentTransactions,
     required this.unreadNotifications,
+    required this.latestNotification,
+    required this.cashFlow,
     this.fromCache = false,
   });
 
@@ -25,6 +27,8 @@ class DashboardBundle {
   final Map<String, dynamic> setupProgress;
   final List<Map<String, dynamic>> recentTransactions;
   final int unreadNotifications;
+  final Map<String, dynamic>? latestNotification;
+  final Map<String, dynamic> cashFlow;
   final bool fromCache;
 }
 
@@ -34,7 +38,7 @@ class DashboardRepository {
   final ApiClient _api;
   final LocalCacheService _cache;
 
-  static const _cacheKey = 'dashboard_bundle_v1';
+  static const _cacheKey = 'dashboard_bundle_v2';
 
   Future<DashboardBundle> fetchDashboard() async {
     try {
@@ -48,8 +52,9 @@ class DashboardRepository {
         ),
         _api.get<Map<String, dynamic>>(
           ApiEndpoints.notifications,
-          queryParameters: {'limit': 1, 'unreadOnly': true},
+          queryParameters: {'limit': 1},
         ),
+        _api.get<Map<String, dynamic>>(ApiEndpoints.dashboardCashFlow),
       ]);
 
       final summary = results[0].data as Map<String, dynamic>? ?? {};
@@ -58,6 +63,9 @@ class DashboardRepository {
       final txList = extractList(results[3].data);
       final notifData = results[4].data as Map<String, dynamic>? ?? {};
       final unread = (notifData['unreadCount'] as num?)?.toInt() ?? 0;
+      final notifItems = extractList(notifData);
+      final latestNotif = notifItems.isNotEmpty ? notifItems.first : null;
+      final cashFlow = results[5].data as Map<String, dynamic>? ?? {};
 
       await _cache.setJson(_cacheKey, {
         'summary': summary,
@@ -65,6 +73,8 @@ class DashboardRepository {
         'setupProgress': setupProgress,
         'recentTransactions': txList,
         'unreadNotifications': unread,
+        'latestNotification': latestNotif,
+        'cashFlow': cashFlow,
       });
 
       return DashboardBundle(
@@ -73,6 +83,8 @@ class DashboardRepository {
         setupProgress: setupProgress,
         recentTransactions: txList,
         unreadNotifications: unread,
+        latestNotification: latestNotif,
+        cashFlow: cashFlow,
       );
     } on ApiException catch (e) {
       if (e.isNetworkError) {
@@ -89,6 +101,9 @@ class DashboardRepository {
                     .cast<Map<String, dynamic>>(),
             unreadNotifications:
                 (cached['unreadNotifications'] as num?)?.toInt() ?? 0,
+            latestNotification:
+                cached['latestNotification'] as Map<String, dynamic>?,
+            cashFlow: (cached['cashFlow'] as Map<String, dynamic>?) ?? {},
             fromCache: true,
           );
         }

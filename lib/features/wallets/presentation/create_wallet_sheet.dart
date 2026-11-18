@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../data/wallets_repository.dart';
 
 Future<bool> showWalletFormSheet(
@@ -15,6 +16,7 @@ Future<bool> showWalletFormSheet(
 }) async {
   final res = await showModalBottomSheet<bool>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(
@@ -74,12 +76,31 @@ class _WalletFormSheetState extends ConsumerState<_WalletFormSheet> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate() || _categoryId == null) return;
+    if (!_formKey.currentState!.validate()) return;
+    if (_categoryId == null || _categoryId!.isEmpty) {
+      await showStatusDialog(
+        context,
+        message: 'Please wait for categories to load or select a category.',
+        isError: true,
+      );
+      return;
+    }
+
+    int? targetKobo;
+    if (_targetCtrl.text.trim().isNotEmpty) {
+      targetKobo = CurrencyFormatter.parseNairaToKobo(_targetCtrl.text);
+      if (targetKobo == null || targetKobo <= 0) {
+        await showStatusDialog(
+          context,
+          message: 'Enter a valid target amount in Naira.',
+          isError: true,
+        );
+        return;
+      }
+    }
+
     setState(() => _saving = true);
     try {
-      final targetKobo = _targetCtrl.text.trim().isEmpty
-          ? null
-          : CurrencyFormatter.parseNairaToKobo(_targetCtrl.text);
       final repo = ref.read(walletsRepositoryProvider);
       if (widget.existing == null) {
         await repo.createWallet(
@@ -99,10 +120,24 @@ class _WalletFormSheetState extends ConsumerState<_WalletFormSheet> {
       }
       if (!mounted) return;
       Navigator.of(context).pop(true);
+      await showStatusDialog(
+        context,
+        title: widget.existing == null
+            ? 'Wallet Created Successfully'
+            : 'Wallet Updated',
+        message: widget.existing == null
+            ? 'Your wallet has been created successfully!'
+            : 'Your wallet changes have been saved.',
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
+      await showStatusDialog(context, message: e.message, isError: true);
+    } catch (e) {
+      if (!mounted) return;
+      await showStatusDialog(
+        context,
+        message: 'Unable to save wallet. Please try again.',
+        isError: true,
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -148,8 +183,12 @@ class _WalletFormSheetState extends ConsumerState<_WalletFormSheet> {
                 loading: () => const LinearProgressIndicator(),
                 error: (e, _) => Text('Failed to load categories: $e'),
                 data: (cats) {
-                  _categoryId ??=
-                      cats.isNotEmpty ? cats.first['id'].toString() : null;
+                  final validIds =
+                      cats.map((c) => c['id'].toString()).toSet();
+                  if (_categoryId == null || !validIds.contains(_categoryId)) {
+                    _categoryId =
+                        cats.isNotEmpty ? cats.first['id'].toString() : null;
+                  }
                   return DropdownButtonFormField<String>(
                     initialValue: _categoryId,
                     items: cats

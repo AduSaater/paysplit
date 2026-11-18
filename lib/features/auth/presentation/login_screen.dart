@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/status_dialog.dart';
 import 'auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -39,16 +40,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!mounted) return;
     final err = ref.read(authProvider).errorMessage;
     if (!ok && err == 'ACCOUNT_SETUP_INCOMPLETE') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please verify your email to finish account setup.'),
-        ),
+      await showStatusDialog(
+        context,
+        title: 'Complete Setup',
+        message: 'Please verify your email to finish account setup.',
       );
-      context.push('/verify-email', extra: _emailCtrl.text.trim());
+      if (mounted) {
+        context.push('/verify-email', extra: _emailCtrl.text.trim());
+      }
     } else if (!ok && err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: err, isError: true);
     }
   }
 
@@ -168,12 +169,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   label: 'Sign in with biometrics',
                   child: InkWell(
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
+                      showStatusDialog(
+                        context,
+                        title: 'Biometric Login',
+                        message:
                             'Sign in once with your password to enable biometric unlock.',
-                          ),
-                        ),
                       );
                     },
                     borderRadius: BorderRadius.circular(12),

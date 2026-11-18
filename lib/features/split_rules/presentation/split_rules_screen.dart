@@ -8,7 +8,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/confirmation_modal.dart';
 import '../../../core/widgets/state_views.dart';
-import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../data/split_rules_repository.dart';
 import 'split_rule_form_sheet.dart';
 
@@ -32,9 +32,7 @@ class _SplitRulesScreenState extends ConsumerState<SplitRulesScreen> {
       ref.invalidate(splitRulesBundleProvider(_status));
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     }
   }
 
@@ -54,9 +52,7 @@ class _SplitRulesScreenState extends ConsumerState<SplitRulesScreen> {
       ref.invalidate(splitRulesBundleProvider(_status));
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     }
   }
 
@@ -65,21 +61,15 @@ class _SplitRulesScreenState extends ConsumerState<SplitRulesScreen> {
     final bundleAsync = ref.watch(splitRulesBundleProvider(_status));
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        centerTitle: true,
         title: const Text('Split Rules'),
         actions: [
           IconButton(
             tooltip: 'Split run history',
             icon: const Icon(Icons.history_rounded),
             onPressed: () => context.push('/split-runs'),
-          ),
-          IconButton(
-            tooltip: 'Add split rule',
-            icon: const Icon(Icons.add_circle_outline_rounded),
-            onPressed: () async {
-              final created = await showSplitRuleFormSheet(context);
-              if (created) ref.invalidate(splitRulesBundleProvider(_status));
-            },
           ),
         ],
       ),
@@ -109,67 +99,168 @@ class _SplitRulesScreenState extends ConsumerState<SplitRulesScreen> {
                 (summary['totalAllocated'] ?? summary['allocated'] ?? 0) as num;
             final remainder =
                 (summary['remainder'] ?? (salary - allocated)) as num;
-            final ratio =
-                salary > 0 ? (allocated / salary).clamp(0.0, 1.0) : 0.0;
+            final pct = salary > 0
+                ? ((allocated / salary) * 100).clamp(0, 100).toInt()
+                : 0;
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
               children: [
-                // Summary Allocation Bar Card
+                // Allocation Progress Card (matches Figma 2x2 grid)
                 AppCard(
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Monthly Salary Allocation',
-                          style: AppTextStyles.bodySmall),
-                      const SizedBox(height: 6),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          Text('Allocation Progress',
+                              style: AppTextStyles.bodyMedium),
                           Text(
-                            CurrencyFormatter.formatKobo(allocated),
-                            style: AppTextStyles.titleLarge
-                                .copyWith(color: AppColors.primary),
-                          ),
-                          Text(
-                            'of ${CurrencyFormatter.formatKobo(salary)}',
-                            style: AppTextStyles.bodyMedium,
+                            '$pct% of Salary',
+                            style: AppTextStyles.labelLarge
+                                .copyWith(fontSize: 14),
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      LinearProgressIndicator(
-                        value: ratio,
-                        backgroundColor: AppColors.surfaceSubtle,
-                        color: ratio >= 1.0
-                            ? AppColors.warning
-                            : AppColors.primary,
-                        minHeight: 8,
-                        borderRadius: BorderRadius.circular(4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: salary > 0
+                              ? (allocated / salary).clamp(0.0, 1.0)
+                              : 0.0,
+                          backgroundColor: AppColors.surfaceSubtle,
+                          color: AppColors.primary,
+                          minHeight: 12,
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Unallocated remainder: ${CurrencyFormatter.formatKobo(remainder)}',
-                        style: AppTextStyles.bodySmall,
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'Monthly Salary Baseline',
+                              value: CurrencyFormatter.formatKobo(
+                                salary,
+                                showDecimals: false,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'Spend Account Remainder',
+                              value: CurrencyFormatter.formatKobo(
+                                remainder,
+                                showDecimals: false,
+                              ),
+                              valueColor: AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'Total Allocated',
+                              value: CurrencyFormatter.formatKobo(
+                                allocated,
+                                showDecimals: false,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _MetricTile(
+                              label: 'Total Unallocated',
+                              value: CurrencyFormatter.formatKobo(
+                                remainder,
+                                showDecimals: false,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 20),
+
+                Text('Salary Rules', style: AppTextStyles.titleMedium),
+                const SizedBox(height: 10),
+
+                // Filter Pills + "+ Add New Rule" Button
                 Row(
-                  children: ['all', 'active', 'paused'].map((s) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(s[0].toUpperCase() + s.substring(1)),
-                        selected: _status == s,
-                        selectedColor: AppColors.primaryLight,
-                        onSelected: (_) => setState(() => _status = s),
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: ['all', 'active', 'paused'].map((s) {
+                        final selected = _status == s;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _status = s),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? AppColors.surface
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                                border: selected
+                                    ? Border.all(color: AppColors.border)
+                                    : null,
+                              ),
+                              child: Text(
+                                s[0].toUpperCase() + s.substring(1),
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: selected
+                                      ? AppColors.textPrimary
+                                      : AppColors.textMuted,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final created = await showSplitRuleFormSheet(context);
+                        if (created) {
+                          ref.invalidate(splitRulesBundleProvider(_status));
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 38),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                    );
-                  }).toList(),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: Text(
+                        'Add New Rule',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
+
                 if (bundle.rules.isEmpty)
                   AppCard(
                     child: EmptyStateView(
@@ -177,7 +268,7 @@ class _SplitRulesScreenState extends ConsumerState<SplitRulesScreen> {
                       title: 'No split rules yet',
                       subtitle:
                           'Define rules by fixed amount or percentage to automatically route every salary.',
-                      actionLabel: 'Create Rule',
+                      actionLabel: '+ Add New Rule',
                       onAction: () async {
                         final created = await showSplitRuleFormSheet(context);
                         if (created) {
@@ -189,23 +280,18 @@ class _SplitRulesScreenState extends ConsumerState<SplitRulesScreen> {
                 else
                   ...bundle.rules.map((r) {
                     final method = (r['method'] ?? 'fixed').toString();
-                    final value = (r['value'] ?? 0) as num;
-                    final displayVal = method == 'fixed'
-                        ? CurrencyFormatter.formatKobo(value)
-                        : '$value%';
                     final destType =
                         (r['destinationType'] ?? 'wallet').toString();
-                    final destName = (r['destinationName'] ??
-                            (r['wallet'] as Map<String, dynamic>?)?['name'] ??
-                            (r['beneficiary']
-                                as Map<String, dynamic>?)?['accountName'] ??
-                            destType)
-                        .toString();
+                    final destLabel = destType == 'wallet'
+                        ? 'Emergency Wallet'
+                        : 'Beneficiary Account';
                     final status = (r['status'] ?? 'active').toString();
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: AppCard(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
                         onTap: () async {
                           final updated = await showSplitRuleFormSheet(
                               context,
@@ -216,38 +302,62 @@ class _SplitRulesScreenState extends ConsumerState<SplitRulesScreen> {
                         },
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: AppColors.primaryLight,
-                              child: Text(
-                                '#${r['priority'] ?? 1}',
-                                style: AppTextStyles.labelSmall
-                                    .copyWith(color: AppColors.primary),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
                                     r['name']?.toString() ?? 'Rule',
-                                    style: AppTextStyles.titleMedium,
+                                    style: AppTextStyles.titleMedium
+                                        .copyWith(fontSize: 15),
                                   ),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    '$destName • $displayVal',
+                                    (r['destinationName'] ?? destLabel)
+                                        .toString(),
                                     style: AppTextStyles.bodySmall,
                                   ),
                                 ],
                               ),
                             ),
-                            StatusBadge(status: status),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.successBg,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                method == 'fixed'
+                                    ? 'Fixed Amount'
+                                    : 'Percentage',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.success,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
                             PopupMenuButton<String>(
+                              icon: const Icon(Icons.chevron_right_rounded,
+                                  color: AppColors.textMuted),
                               onSelected: (action) {
+                                if (action == 'edit') {
+                                  showSplitRuleFormSheet(context, existing: r)
+                                      .then((updated) {
+                                    if (updated) {
+                                      ref.invalidate(
+                                          splitRulesBundleProvider(_status));
+                                    }
+                                  });
+                                }
                                 if (action == 'toggle') _togglePause(r);
                                 if (action == 'delete') _deleteRule(r);
                               },
                               itemBuilder: (_) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit rule'),
+                                ),
                                 PopupMenuItem(
                                   value: 'toggle',
                                   child: Text(
@@ -274,6 +384,49 @@ class _SplitRulesScreenState extends ConsumerState<SplitRulesScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.bodySmall.copyWith(fontSize: 11),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppTextStyles.titleMedium.copyWith(
+              color: valueColor ?? AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../data/beneficiaries_repository.dart';
 
 Future<bool> showAddBeneficiarySheet(BuildContext context) async {
@@ -99,9 +100,7 @@ class _AddBeneficiarySheetState extends ConsumerState<_AddBeneficiarySheet> {
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

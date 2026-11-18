@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/offline_banner.dart';
+import 'features/auth/presentation/account_success_screen.dart';
 import 'features/auth/presentation/auth_provider.dart';
 import 'features/auth/presentation/forgot_password_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
@@ -22,6 +23,7 @@ import 'features/split_rules/presentation/split_rules_screen.dart';
 import 'features/split_rules/presentation/split_runs_screen.dart';
 import 'features/transactions/presentation/transaction_detail_screen.dart';
 import 'features/transactions/presentation/transactions_screen.dart';
+import 'features/wallets/presentation/destination_screen.dart';
 import 'features/wallets/presentation/wallet_detail_screen.dart';
 import 'features/wallets/presentation/wallets_screen.dart';
 
@@ -46,7 +48,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
       if (authStatus == AuthStatus.unauthenticated && !isAuthRoute) {
         return '/login';
       }
-      if (authStatus == AuthStatus.authenticated && isAuthRoute) {
+      if (authStatus == AuthStatus.authenticated &&
+          isAuthRoute &&
+          loc != '/account-success') {
         return '/dashboard';
       }
       return null;
@@ -62,6 +66,10 @@ final _routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/set-password',
         builder: (_, _) => const SetPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/account-success',
+        builder: (_, _) => const AccountSuccessScreen(),
       ),
       GoRoute(
         path: '/forgot-password',
@@ -91,6 +99,18 @@ final _routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const TransactionsScreen(),
       ),
       GoRoute(
+        path: '/settings',
+        builder: (_, _) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/wallets',
+        builder: (_, _) => const WalletsScreen(),
+      ),
+      GoRoute(
+        path: '/beneficiaries',
+        builder: (_, _) => const BeneficiariesScreen(),
+      ),
+      GoRoute(
         path: '/transactions/:id',
         builder: (_, state) =>
             TransactionDetailScreen(transactionId: state.pathParameters['id']!),
@@ -108,26 +128,20 @@ final _routerProvider = Provider<GoRouter>((ref) {
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
-              path: '/wallets',
-              builder: (_, _) => const WalletsScreen(),
+              path: '/history',
+              builder: (_, _) => const TransactionsScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/destination',
+              builder: (_, _) => const DestinationScreen(),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/rules',
               builder: (_, _) => const SplitRulesScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/beneficiaries',
-              builder: (_, _) => const BeneficiariesScreen(),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/settings',
-              builder: (_, _) => const SettingsScreen(),
             ),
           ]),
         ],
@@ -203,47 +217,54 @@ class _AppShell extends StatelessWidget {
           ),
           NavigationDestination(
             icon: SvgPicture.asset(
-              'assets/icons/nav_wallet.svg',
+              'assets/icons/nav_split.svg',
               width: 22,
               height: 22,
               colorFilter: const ColorFilter.mode(
                   AppColors.textMuted, BlendMode.srcIn),
             ),
             selectedIcon: SvgPicture.asset(
-              'assets/icons/nav_wallet.svg',
+              'assets/icons/nav_split.svg',
               width: 22,
               height: 22,
               colorFilter:
                   const ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
             ),
-            label: 'Wallets',
+            label: 'History',
           ),
           NavigationDestination(
             icon: SvgPicture.asset(
-              'assets/icons/nav_split.svg',
+              'assets/icons/nav_wallet.svg',
               width: 22,
               height: 22,
               colorFilter: const ColorFilter.mode(
                   AppColors.textMuted, BlendMode.srcIn),
             ),
             selectedIcon: SvgPicture.asset(
-              'assets/icons/nav_split.svg',
+              'assets/icons/nav_wallet.svg',
               width: 22,
               height: 22,
               colorFilter:
                   const ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
             ),
-            label: 'Rules',
+            label: 'Destination',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.people_outline_rounded),
-            selectedIcon: Icon(Icons.people_rounded),
-            label: 'Recipients',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded),
-            label: 'Settings',
+          NavigationDestination(
+            icon: SvgPicture.asset(
+              'assets/icons/nav_history.svg',
+              width: 22,
+              height: 22,
+              colorFilter: const ColorFilter.mode(
+                  AppColors.textMuted, BlendMode.srcIn),
+            ),
+            selectedIcon: SvgPicture.asset(
+              'assets/icons/nav_history.svg',
+              width: 22,
+              height: 22,
+              colorFilter:
+                  const ColorFilter.mode(AppColors.primary, BlendMode.srcIn),
+            ),
+            label: 'Split Rules',
           ),
         ],
       ),

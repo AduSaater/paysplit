@@ -11,6 +11,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/confirmation_modal.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../../dashboard/presentation/dashboard_provider.dart';
 import '../data/wallets_repository.dart';
 import 'create_wallet_sheet.dart';
@@ -107,19 +108,16 @@ class _WalletDetailScreenState extends ConsumerState<WalletDetailScreen> {
                   ref.invalidate(dashboardProvider);
                   await _load();
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Funds moved to salary account'),
-                      backgroundColor: AppColors.success,
-                    ),
+                  await showStatusDialog(
+                    context,
+                    message: 'Funds moved to salary account.',
                   );
                 } on ApiException catch (e) {
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(e.message),
-                      backgroundColor: AppColors.error,
-                    ),
+                  await showStatusDialog(
+                    context,
+                    message: e.message,
+                    isError: true,
                   );
                 }
               },
@@ -147,9 +145,7 @@ class _WalletDetailScreenState extends ConsumerState<WalletDetailScreen> {
       context.pop();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     }
   }
 

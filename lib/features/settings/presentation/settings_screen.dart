@@ -13,6 +13,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/confirmation_modal.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../data/settings_repository.dart';
 
@@ -104,19 +105,16 @@ class SettingsScreen extends ConsumerWidget {
                         );
                     ref.invalidate(userProfileProvider);
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Salary income updated'),
-                        backgroundColor: AppColors.success,
-                      ),
+                    await showStatusDialog(
+                      context,
+                      message: 'Salary income updated.',
                     );
                   } on ApiException catch (e) {
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(e.message),
-                        backgroundColor: AppColors.error,
-                      ),
+                    await showStatusDialog(
+                      context,
+                      message: e.message,
+                      isError: true,
                     );
                   }
                 },
@@ -192,19 +190,16 @@ class SettingsScreen extends ConsumerWidget {
                           confirmPassword: confCtrl.text,
                         );
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Password changed successfully'),
-                        backgroundColor: AppColors.success,
-                      ),
+                    await showStatusDialog(
+                      context,
+                      message: 'Password changed successfully.',
                     );
                   } on ApiException catch (e) {
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(e.message),
-                        backgroundColor: AppColors.error,
-                      ),
+                    await showStatusDialog(
+                      context,
+                      message: e.message,
+                      isError: true,
                     );
                   }
                 },

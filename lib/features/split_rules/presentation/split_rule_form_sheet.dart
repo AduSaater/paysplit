@@ -6,6 +6,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../../beneficiaries/data/beneficiaries_repository.dart';
 import '../../wallets/data/wallets_repository.dart';
 import '../data/split_rules_repository.dart';
@@ -146,9 +147,7 @@ class _SplitRuleFormSheetState extends ConsumerState<_SplitRuleFormSheet> {
 
   void _showErr(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.error),
-    );
+    showStatusDialog(context, message: msg, isError: true);
   }
 
   @override

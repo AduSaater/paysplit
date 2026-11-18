@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../data/auth_repository.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -44,9 +45,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       context.push('/verify-email', extra: _emailCtrl.text.trim());
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

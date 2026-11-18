@@ -11,6 +11,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/state_views.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../data/kyc_repository.dart';
 
@@ -210,9 +211,7 @@ class _KycFlowScreenState extends ConsumerState<KycFlowScreen> {
 
   void _showError(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.error),
-    );
+    showStatusDialog(context, message: msg, isError: true);
   }
 
   @override

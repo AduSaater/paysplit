@@ -5,9 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../core/utils/validators.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/circle_back_button.dart';
+import '../../../core/widgets/otp_input_row.dart';
+import '../../../core/widgets/status_dialog.dart';
 import '../data/auth_repository.dart';
 
 class VerifyEmailScreen extends ConsumerStatefulWidget {
@@ -20,8 +21,10 @@ class VerifyEmailScreen extends ConsumerStatefulWidget {
 }
 
 class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _codeCtrl = TextEditingController();
+  final List<TextEditingController> _ctrls =
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _nodes = List.generate(6, (_) => FocusNode());
+
   bool _loading = false;
   int _countdown = 60;
   Timer? _timer;
@@ -48,25 +51,37 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    _codeCtrl.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
+    for (final n in _nodes) {
+      n.dispose();
+    }
     super.dispose();
   }
 
+  String get _code => _ctrls.map((c) => c.text.trim()).join();
+
   Future<void> _verify() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_code.length != 6) {
+      await showStatusDialog(
+        context,
+        message: 'Enter the 6-digit verification code',
+        isError: true,
+      );
+      return;
+    }
     setState(() => _loading = true);
     try {
       await ref.read(authRepositoryProvider).verifyEmail(
             email: widget.email,
-            code: _codeCtrl.text,
+            code: _code,
           );
       if (!mounted) return;
       context.push('/set-password');
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -79,71 +94,97 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen> {
           await ref.read(authRepositoryProvider).resendEmailCode(widget.email);
       if (!mounted) return;
       _startTimer(secs);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification code resent!')),
+      await showStatusDialog(
+        context,
+        message: 'Verification code resent to ${widget.email}.',
       );
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: AppColors.error),
-      );
+      await showStatusDialog(context, message: e.message, isError: true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify Email')),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Step 2 of 3 • Email Verification',
-                    style: AppTextStyles.labelSmall.copyWith(color: AppColors.primary)),
-                const SizedBox(height: 8),
-                Text('Check your inbox', style: AppTextStyles.headlineMedium),
-                const SizedBox(height: 8),
-                Text(
-                  'We sent a 6-digit verification code to ${widget.email}.',
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CircleBackButton(onTap: () => context.pop()),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                'Check Your Email',
+                style: AppTextStyles.headlineMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              RichText(
+                textAlign: TextAlign.center,
+                text: TextSpan(
                   style: AppTextStyles.bodyMedium,
-                ),
-                const SizedBox(height: 28),
-                AppTextField(
-                  label: '6-digit verification code',
-                  controller: _codeCtrl,
-                  hintText: '123456',
-                  maxLength: 6,
-                  keyboardType: TextInputType.number,
-                  validator: Validators.otpCode,
-                ),
-                const SizedBox(height: 24),
-                AppPrimaryButton(
-                  label: 'Verify Code',
-                  isLoading: _loading,
-                  onPressed: _verify,
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: TextButton(
-                    onPressed: _countdown == 0 ? _resend : null,
-                    child: Text(
-                      _countdown > 0
-                          ? "Didn't get a code? Resend in ${_countdown}s"
-                          : "Didn't get a code? Click to resend",
-                      style: AppTextStyles.labelLarge.copyWith(
-                        color: _countdown == 0
-                            ? AppColors.primary
-                            : AppColors.textTertiary,
+                  children: [
+                    const TextSpan(text: 'We have sent 6 digits code to '),
+                    TextSpan(
+                      text: widget.email,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 36),
+
+              // 6 Individual OTP Digit Boxes
+              OtpInputRow(
+                controllers: _ctrls,
+                focusNodes: _nodes,
+              ),
+              const SizedBox(height: 20),
+
+              GestureDetector(
+                onTap: _countdown == 0 ? _resend : null,
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    style: AppTextStyles.bodyMedium,
+                    children: [
+                      const TextSpan(text: "Didn't get a code? "),
+                      TextSpan(
+                        text: _countdown > 0
+                            ? 'Resend in ${_countdown}s'
+                            : 'Click to resend.',
+                        style: TextStyle(
+                          color: _countdown == 0
+                              ? AppColors.primary
+                              : AppColors.textTertiary,
+                          decoration: _countdown == 0
+                              ? TextDecoration.underline
+                              : TextDecoration.none,
+                          decorationColor: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 36),
+
+              AppPrimaryButton(
+                label: 'Verify Email',
+                isLoading: _loading,
+                onPressed: _verify,
+              ),
+            ],
           ),
         ),
       ),
